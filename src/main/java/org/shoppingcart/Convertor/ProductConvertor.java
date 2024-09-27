@@ -40,9 +40,11 @@ public class ProductConvertor {
     public ProductDTO entityToDTO(ProductEntity productEntity) {
         ProductDTO product = modelMapper.map(productEntity, ProductDTO.class);
         product.setCategoryName(productEntity.getCategory().getName());
-        product.setImages(productEntity.getImages().stream()
-                .map(imageConvertor::entityToDTO)
-                .toList());
+        if(product.getImages() != null) {
+            product.setImages(productEntity.getImages().stream()
+                    .map(imageConvertor::entityToDTO)
+                    .toList());
+        }
         return product;
     }
 }

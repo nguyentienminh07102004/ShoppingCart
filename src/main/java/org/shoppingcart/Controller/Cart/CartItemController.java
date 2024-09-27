@@ -29,7 +29,7 @@ public class CartItemController {
                     .body(new APIResponse("SUCCESS", null));
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                    .body(new APIResponse("FAIL", null));
+                    .body(new APIResponse("FAIL", e));
         }
     }
 

@@ -10,11 +10,13 @@ import org.shoppingcart.Repository.Cart.CartItemRepository;
 import org.shoppingcart.Repository.Cart.CartRepository;
 import org.shoppingcart.Service.Product.IProductService;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 
 @Service(value = "CartItemService")
 @RequiredArgsConstructor
+@Transactional
 public class CartItemService implements ICartItemService {
     private final CartItemRepository cartItemRepository;
     private final CartRepository cartRepository;
@@ -28,13 +30,13 @@ public class CartItemService implements ICartItemService {
         // 3. Kiểm tra sự tồn tại của sản phẩm trong giỏ hàng
         // 4. Nếu có rồi thì cập nhật lại số lượng
         // 5. Nếu chưa có thì khởi tạo
-        CartEntity cart = cartService.getCartById(cartId);
+        CartEntity cart = cartService.getCartEntityById(cartId);
         ProductEntity product = productService.getProductEntityById(productId);
         CartItemEntity cartItem = cart.getCartItems().stream()
                 .filter(item -> item.getProduct().getId().equals(productId))
                 .findAny()
                 .orElse(new CartItemEntity());
-        // Nếu không tìm thấy thì cartItem.getId() == null thì sẽ set các thộc tính vào
+        // Nếu không tìm thấy thì cartItem.getId() == null thì sẽ set các thuộc tính vào
         if(cartItem.getId() == null) {
             cartItem.setCart(cart);
             cartItem.setProduct(product);
@@ -45,29 +47,26 @@ public class CartItemService implements ICartItemService {
             cartItem.setQuantity(cartItem.getQuantity() + quantity);
         }
         cartItem.setTotalPrice();
-        BigDecimal totalAmount = cart.getTotalAmount().add(cartItem.getTotalPrice());
-        cart.setTotalAmount(totalAmount);
-        cartItem.setCart(cart);
+        cart.addItem(cartItem);
         cartItemRepository.save(cartItem);
+        cartRepository.save(cart);
     }
 
     @Override
     public void removeItemFromCart(String cartId, String productId) {
-        CartEntity cart = cartService.getCartById(cartId);
+        CartEntity cart = cartService.getCartEntityById(cartId);
         ProductEntity product = productService.getProductEntityById(productId);
         CartItemEntity cartItem = cart.getCartItems().stream()
-                .filter(item -> product.getId().equals(item.getProduct().getId()))
+                .filter(item -> productId.equals(item.getProduct().getId()))
                 .findFirst()
                 .orElseThrow(() -> new ResourceNotFoundException("Product not had in this cart"));
-        BigDecimal totalAmount = cart.getTotalAmount().subtract(cartItem.getTotalPrice());
-        cart.setTotalAmount(totalAmount);
-        cartItemRepository.delete(cartItem);
+        cart.removeItem(cartItem);
         cartRepository.save(cart);
     }
 
     @Override
     public void updateCartItemQuantity(String cartId, String productId, Integer quantity) {
-        CartEntity cart = cartService.getCartById(cartId);
+        CartEntity cart = cartService.getCartEntityById(cartId);
         ProductDTO product = productService.getProductById(productId);
         cart.getCartItems().stream()
                 .filter(item -> item.getProduct().getId().equals(product.getId()))
@@ -76,6 +75,10 @@ public class CartItemService implements ICartItemService {
                     item.setQuantity(quantity);
                     item.setTotalPrice();
                 });
-        cartRepository.save(cart);
+        BigDecimal totalAmount = cart.getCartItems().stream()
+                .map(CartItemEntity::getTotalPrice)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        cart.setTotalAmount(totalAmount);
+        cartRepository.saveAndFlush(cart);
     }
 }

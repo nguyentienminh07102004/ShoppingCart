@@ -37,13 +37,32 @@ public class CartEntity {
 
     @OneToMany(fetch = FetchType.LAZY, targetEntity = CartItemEntity.class,
             orphanRemoval = true, mappedBy = "cart")
-    @Cascade(value = {CascadeType.MERGE, CascadeType.PERSIST})
+    @Cascade(value = {CascadeType.MERGE, CascadeType.PERSIST, CascadeType.DETACH})
     @JsonManagedReference
     private List<CartItemEntity> cartItems;
 
     public BigDecimal updatePrice() {
-        return this.getCartItems().stream()
-                .map(CartItemEntity::getTotalPrice)
+        return cartItems.stream()
+                .map(item -> {
+                    BigDecimal unitPrice = item.getUnitPrice();
+                    if(unitPrice == null) unitPrice = BigDecimal.ZERO;
+                    return unitPrice.multiply(new BigDecimal(item.getQuantity()));
+                })
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
+
+    public void addItem(CartItemEntity item) {
+        cartItems.removeIf((cartItem) -> cartItem.getId().equals(item.getId()));
+        cartItems.add(item);
+        item.setCart(this);
+        BigDecimal totalAmount = updatePrice();
+        this.setTotalAmount(totalAmount);
+    }
+
+    public void removeItem(CartItemEntity cartItem) {
+        cartItems.remove(cartItem);
+        cartItem.setCart(null);
+        BigDecimal totalAmount = updatePrice();
+        this.setTotalAmount(totalAmount);
     }
 }

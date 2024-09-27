@@ -38,11 +38,13 @@ public class CartItemEntity {
     private BigDecimal totalPrice;
     @Column(name = "unitprice")
     private BigDecimal unitPrice;
+
     @ManyToOne(targetEntity = CartEntity.class)
     @JoinColumn(name = "cartid", referencedColumnName = "id")
-    @Cascade(value = {CascadeType.PERSIST, CascadeType.MERGE})
+    @Cascade(value = {CascadeType.PERSIST, CascadeType.MERGE, CascadeType.DETACH})
     @JsonBackReference
     private CartEntity cart;
+
     @ManyToOne(targetEntity = ProductEntity.class)
     @JoinColumn(name = "productid", referencedColumnName = "id")
     @JsonManagedReference
